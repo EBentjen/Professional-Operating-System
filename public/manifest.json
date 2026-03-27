@@ -1,0 +1,37 @@
+{
+  "name": "Work OS",
+  "short_name": "Work OS",
+  "description": "Strategic operating system for high-performance finance leaders",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Daily Focus",
+      "url": "/daily",
+      "description": "Set today's focus items"
+    },
+    {
+      "name": "Weekly Priorities",
+      "url": "/weekly",
+      "description": "Manage this week's priorities"
+    }
+  ]
+}
