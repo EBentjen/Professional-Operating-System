@@ -3,13 +3,19 @@
 export type PriorityStatus = 'not_started' | 'in_progress' | 'blocked' | 'done';
 export type ImpactLevel = 'high' | 'medium' | 'low';
 export type StakeholderTier = 'primary' | 'secondary';
+export type OKRStatus = 'on_track' | 'at_risk' | 'off_track' | 'complete';
+export type WinCategory = 'leadership' | 'financial' | 'operational' | 'strategic' | 'team' | 'general';
+export type SourceType = 'book' | 'article' | 'podcast' | 'conversation' | 'course' | 'other';
+export type TemplateCategory = 'board' | 'budget' | 'communication' | 'hr' | 'strategy' | 'general' | 'meeting';
+export type EventType = 'deadline' | 'meeting' | 'review' | 'report' | 'close';
+export type CaptureStatus = 'inbox' | 'processed' | 'archived';
 
 // ─── Week ────────────────────────────────────────────────────────────────────
 
 export interface Week {
   id: number;
-  week_start: string; // ISO date string (Monday)
-  week_end: string;   // ISO date string (Friday)
+  week_start: string;
+  week_end: string;
   theme: string | null;
   created_at: string;
   updated_at: string;
@@ -21,8 +27,8 @@ export interface Priority {
   id: number;
   week_id: number;
   title: string;
-  outcome: string;           // What "done" looks like
-  why_it_matters: string;    // Strategic rationale
+  outcome: string;
+  why_it_matters: string;
   status: PriorityStatus;
   impact: ImpactLevel;
   deadline: string | null;
@@ -30,7 +36,6 @@ export interface Priority {
   order_index: number;
   created_at: string;
   updated_at: string;
-  // Joined
   deliverables?: Deliverable[];
   stakeholders?: Stakeholder[];
 }
@@ -46,7 +51,6 @@ export interface Deliverable {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  // Joined (when fetched with priority context)
   priority_title?: string;
 }
 
@@ -66,7 +70,7 @@ export interface Stakeholder {
 export interface PriorityStakeholder {
   priority_id: number;
   stakeholder_id: number;
-  relationship: string | null; // "owner" | "approver" | "informed" | "waiting_on"
+  relationship: string | null;
 }
 
 // ─── Follow-Up ───────────────────────────────────────────────────────────────
@@ -77,10 +81,9 @@ export interface FollowUp {
   stakeholder_id: number | null;
   description: string;
   due_date: string | null;
-  is_complete: number; // 0 | 1 (SQLite boolean)
+  is_complete: number;
   created_at: string;
   updated_at: string;
-  // Joined
   stakeholder_name?: string;
   priority_title?: string;
 }
@@ -89,14 +92,13 @@ export interface FollowUp {
 
 export interface DailyFocus {
   id: number;
-  focus_date: string; // ISO date
+  focus_date: string;
   priority_id: number | null;
   title: string;
   notes: string | null;
   is_complete: number;
   order_index: number;
   created_at: string;
-  // Joined
   priority_title?: string;
 }
 
@@ -110,10 +112,9 @@ export interface Insight {
   takeaway: string;
   recommendation: string;
   executive_summary: string | null;
-  talking_points: string | null; // JSON array stored as string
+  talking_points: string | null;
   created_at: string;
   updated_at: string;
-  // Joined
   priority_title?: string;
 }
 
@@ -129,6 +130,129 @@ export interface WeeklyReview {
   next_week_focus: string;
   created_at: string;
   updated_at: string;
+}
+
+// ─── Capture ─────────────────────────────────────────────────────────────────
+
+export interface Capture {
+  id: number;
+  content: string;
+  tags: string;
+  status: CaptureStatus;
+  created_at: string;
+}
+
+// ─── Decision ────────────────────────────────────────────────────────────────
+
+export interface Decision {
+  id: number;
+  title: string;
+  context: string;
+  decision: string;
+  rationale: string;
+  alternatives: string;
+  stakeholders: string; // JSON array of names
+  outcome: string;
+  tags: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Win ─────────────────────────────────────────────────────────────────────
+
+export interface Win {
+  id: number;
+  title: string;
+  description: string;
+  impact: string;
+  metric: string;
+  category: WinCategory;
+  date: string;
+  created_at: string;
+}
+
+// ─── 1:1 ─────────────────────────────────────────────────────────────────────
+
+export interface OneOnOne {
+  id: number;
+  stakeholder_id: number | null;
+  stakeholder_name: string;
+  date: string;
+  agenda: string; // JSON array
+  notes: string;
+  my_commitments: string; // JSON array
+  their_commitments: string; // JSON array
+  themes: string;
+  next_agenda: string; // JSON array
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── OKR ─────────────────────────────────────────────────────────────────────
+
+export interface OKR {
+  id: number;
+  title: string;
+  description: string;
+  quarter: string;
+  status: OKRStatus;
+  created_at: string;
+  updated_at: string;
+  key_results?: KeyResult[];
+}
+
+export interface KeyResult {
+  id: number;
+  okr_id: number;
+  title: string;
+  target: string;
+  current_value: string;
+  unit: string;
+  progress: number; // 0-100
+  status: OKRStatus;
+  created_at: string;
+}
+
+// ─── Financial Event ─────────────────────────────────────────────────────────
+
+export interface FinancialEvent {
+  id: number;
+  title: string;
+  event_type: EventType;
+  bd_day: number | null; // business day of month
+  specific_date: string | null;
+  recurring: 'monthly' | 'quarterly' | 'annual' | 'once';
+  notes: string;
+  color: string;
+  created_at: string;
+}
+
+// ─── Template ────────────────────────────────────────────────────────────────
+
+export interface Template {
+  id: number;
+  title: string;
+  category: TemplateCategory;
+  description: string;
+  content: string;
+  tags: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Learning ────────────────────────────────────────────────────────────────
+
+export interface Learning {
+  id: number;
+  title: string;
+  source: string;
+  source_type: SourceType;
+  key_takeaway: string;
+  action_item: string;
+  tags: string;
+  date: string;
+  created_at: string;
 }
 
 // ─── API Response Types ───────────────────────────────────────────────────────
@@ -147,4 +271,15 @@ export interface DashboardSummary {
   todayFocus: DailyFocus[];
   pendingFollowUps: FollowUp[];
   overdueDeliverables: Deliverable[];
+}
+
+// ─── Search Result ────────────────────────────────────────────────────────────
+
+export interface SearchResult {
+  type: 'priority' | 'decision' | 'win' | 'learning' | 'capture' | 'one_on_one' | 'template' | 'stakeholder';
+  id: number;
+  title: string;
+  excerpt: string;
+  date: string;
+  href: string;
 }

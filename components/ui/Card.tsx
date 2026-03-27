@@ -23,9 +23,9 @@ export function Card({ children, className, onClick, hoverable }: CardProps) {
   );
 }
 
-export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
+export function CardHeader({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
   return (
-    <div className={cn('px-5 pt-5 pb-3', className)}>
+    <div onClick={onClick} className={cn('px-5 pt-5 pb-3', className)}>
       {children}
     </div>
   );

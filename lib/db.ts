@@ -10,7 +10,6 @@ let db: Database.Database | null = null;
 function getDb(): Database.Database {
   if (db) return db;
 
-  // Ensure data directory exists
   if (!fs.existsSync(DB_DIR)) {
     fs.mkdirSync(DB_DIR, { recursive: true });
   }
@@ -124,23 +123,230 @@ function initSchema(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS captures (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      content TEXT NOT NULL,
+      tags TEXT DEFAULT '',
+      status TEXT DEFAULT 'inbox' CHECK(status IN ('inbox','processed','archived')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS decisions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      context TEXT DEFAULT '',
+      decision TEXT NOT NULL,
+      rationale TEXT DEFAULT '',
+      alternatives TEXT DEFAULT '',
+      stakeholders TEXT DEFAULT '[]',
+      outcome TEXT DEFAULT '',
+      tags TEXT DEFAULT '',
+      date TEXT DEFAULT (date('now')),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS wins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      impact TEXT DEFAULT '',
+      metric TEXT DEFAULT '',
+      category TEXT DEFAULT 'general' CHECK(category IN ('leadership','financial','operational','strategic','team','general')),
+      date TEXT DEFAULT (date('now')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS one_on_ones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      stakeholder_id INTEGER REFERENCES stakeholders(id) ON DELETE SET NULL,
+      stakeholder_name TEXT NOT NULL,
+      date TEXT NOT NULL,
+      agenda TEXT DEFAULT '[]',
+      notes TEXT DEFAULT '',
+      my_commitments TEXT DEFAULT '[]',
+      their_commitments TEXT DEFAULT '[]',
+      themes TEXT DEFAULT '',
+      next_agenda TEXT DEFAULT '[]',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS okrs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      quarter TEXT NOT NULL,
+      status TEXT DEFAULT 'on_track' CHECK(status IN ('on_track','at_risk','off_track','complete')),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS key_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      okr_id INTEGER NOT NULL REFERENCES okrs(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      target TEXT DEFAULT '',
+      current_value TEXT DEFAULT '',
+      unit TEXT DEFAULT '',
+      progress INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'on_track' CHECK(status IN ('on_track','at_risk','off_track','complete')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS financial_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      event_type TEXT DEFAULT 'deadline' CHECK(event_type IN ('deadline','meeting','review','report','close')),
+      bd_day INTEGER,
+      specific_date TEXT,
+      recurring TEXT DEFAULT 'monthly' CHECK(recurring IN ('monthly','quarterly','annual','once')),
+      notes TEXT DEFAULT '',
+      color TEXT DEFAULT 'zinc',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      category TEXT DEFAULT 'general' CHECK(category IN ('board','budget','communication','hr','strategy','general','meeting')),
+      description TEXT DEFAULT '',
+      content TEXT NOT NULL,
+      tags TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS learnings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      source TEXT DEFAULT '',
+      source_type TEXT DEFAULT 'article' CHECK(source_type IN ('book','article','podcast','conversation','course','other')),
+      key_takeaway TEXT DEFAULT '',
+      action_item TEXT DEFAULT '',
+      tags TEXT DEFAULT '',
+      date TEXT DEFAULT (date('now')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 
 function seedDefaults(db: Database.Database) {
-  // Seed default stakeholders if empty
   const count = db.prepare('SELECT COUNT(*) as c FROM stakeholders').get() as { c: number };
-  if (count.c > 0) return;
+  if (count.c === 0) {
+    const ins = db.prepare('INSERT INTO stakeholders (name, title, tier) VALUES (?, ?, ?)');
+    ins.run('Dillon Rouse', 'Manager', 'primary');
+    ins.run('CEO', 'Chief Executive Officer', 'primary');
+    ins.run('CFO', 'Chief Financial Officer', 'primary');
+    ins.run('Board', 'Board of Directors', 'primary');
+    ins.run('VP Sales', 'VP of Sales', 'secondary');
+    ins.run('VP Engineering', 'VP of Engineering', 'secondary');
+  }
 
-  const insertStakeholder = db.prepare(
-    'INSERT INTO stakeholders (name, title, tier) VALUES (?, ?, ?)'
-  );
-  insertStakeholder.run('CEO', 'Chief Executive Officer', 'primary');
-  insertStakeholder.run('CFO', 'Chief Financial Officer', 'primary');
-  insertStakeholder.run('VP Finance', 'VP of Finance', 'primary');
-  insertStakeholder.run('Board', 'Board of Directors', 'primary');
-  insertStakeholder.run('VP Sales', 'VP of Sales', 'secondary');
-  insertStakeholder.run('VP Engineering', 'VP of Engineering', 'secondary');
+  const evCount = db.prepare('SELECT COUNT(*) as c FROM financial_events').get() as { c: number };
+  if (evCount.c === 0) {
+    const ins = db.prepare('INSERT INTO financial_events (title, event_type, bd_day, recurring, color) VALUES (?, ?, ?, ?, ?)');
+    ins.run('Net Revenue Due', 'deadline', 5, 'monthly', 'blue');
+    ins.run('S&B Submissions Due', 'deadline', 4, 'monthly', 'violet');
+    ins.run('Other OPEX Due', 'deadline', 4, 'monthly', 'amber');
+    ins.run('High Levels Ready', 'review', 6, 'monthly', 'emerald');
+    ins.run('Flash Financial Report Distributed', 'report', 10, 'monthly', 'sky');
+    ins.run('Full Financial Reviews Distributed', 'report', 20, 'monthly', 'indigo');
+  }
+
+  const tCount = db.prepare('SELECT COUNT(*) as c FROM templates').get() as { c: number };
+  if (tCount.c === 0) {
+    const ins = db.prepare('INSERT INTO templates (title, category, description, content) VALUES (?, ?, ?, ?)');
+    ins.run(
+      'Board Meeting Prep',
+      'board',
+      'Checklist and narrative structure for board meetings',
+      `# Board Meeting Prep
+
+## Pre-Meeting (1 week out)
+- [ ] Draft financial narrative (performance vs. plan)
+- [ ] Identify 2-3 key messages you want the board to leave with
+- [ ] Prepare variance explanations (>5% off plan)
+- [ ] Confirm deck is reviewed by CEO
+
+## Financials Section Structure
+1. Headline: revenue, EBITDA, cash — vs. plan and prior year
+2. Drivers: what caused the variance (top 3)
+3. Outlook: updated forecast with confidence level
+4. Risks: top 2-3 with mitigation plans
+
+## Questions to Anticipate
+- Why did X miss plan?
+- What's the path to Y?
+- How does this compare to peers?
+- What's the biggest risk to the year?
+
+## Day-of Checklist
+- [ ] Backup deck on USB + printed copies
+- [ ] Arrive 30 min early
+- [ ] Know the 3 numbers cold (no looking)
+`
+    );
+    ins.run(
+      'Weekly 1:1 with Boss',
+      'meeting',
+      'Standing agenda for weekly manager check-in',
+      `# Weekly 1:1 Agenda
+
+## My Updates (5 min)
+- Top priority this week and status
+- One thing I need from them
+- One thing I want them to know
+
+## Open Items / Follow-ups
+- [ ] Item from last week
+- [ ] Pending decision needed
+
+## Strategic Topics
+- Topic 1
+- Topic 2
+
+## My Asks
+- Decision needed on:
+- Visibility/air cover needed for:
+- Feedback requested on:
+`
+    );
+    ins.run(
+      'Month-End Close Communication',
+      'communication',
+      'Template for distributing month-end results',
+      `# [Month] Financial Results — [YYYY]
+
+**To:** Leadership Team
+**From:** Finance
+
+## Headline
+[One sentence: beat/missed plan by X, driven by Y]
+
+## Key Metrics
+| Metric | Actual | Plan | Variance | Prior Year |
+|--------|--------|------|----------|------------|
+| Revenue | | | | |
+| Gross Margin | | | | |
+| EBITDA | | | | |
+
+## What Drove Performance
+**Positive:**
+-
+
+**Negative:**
+-
+
+## Updated Outlook
+[One paragraph on revised FY forecast and confidence level]
+
+## Actions / Decisions Needed
+1.
+`
+    );
+  }
 }
 
 export default getDb;
