@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatDate, cn } from '@/lib/utils';
@@ -403,11 +404,10 @@ export default function StakeholdersPage() {
               <option key={p.id} value={p.id}>{p.title}</option>
             ))}
           </Select>
-          <Input
+          <DatePicker
             label="Due date"
-            type="date"
             value={followUpForm.due_date}
-            onChange={e => setFollowUpForm(f => ({ ...f, due_date: e.target.value }))}
+            onChange={val => setFollowUpForm(f => ({ ...f, due_date: val }))}
           />
           <div className="flex gap-3">
             <Button onClick={addFollowUp} disabled={!followUpForm.description} className="flex-1">Add</Button>

@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { StatusBadge, ImpactBadge } from '@/components/ui/StatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -330,11 +331,10 @@ export default function WeeklyPage() {
                             onKeyDown={e => e.key === 'Enter' && addDeliverable(p.id)}
                             className="flex-1"
                           />
-                          <Input
-                            type="date"
+                          <DatePicker
                             value={deliverableForm.due_date}
-                            onChange={e => setDeliverableForm(f => ({ ...f, due_date: e.target.value }))}
-                            className="w-36"
+                            onChange={val => setDeliverableForm(f => ({ ...f, due_date: val }))}
+                            className="w-44"
                           />
                           <Button variant="secondary" size="sm" onClick={() => addDeliverable(p.id)}>
                             <Plus size={14} />
@@ -432,11 +432,10 @@ export default function WeeklyPage() {
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </Select>
-            <Input
+            <DatePicker
               label="Deadline"
-              type="date"
               value={form.deadline}
-              onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
+              onChange={val => setForm(f => ({ ...f, deadline: val }))}
             />
           </div>
 
