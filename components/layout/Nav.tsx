@@ -20,6 +20,7 @@ import {
   BookOpen,
   Search,
   FileBarChart2,
+  HardDrive,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -61,6 +62,12 @@ const NAV_SECTIONS = [
       { href: '/insights', label: 'Insights',      icon: Lightbulb },
       { href: '/review',   label: 'Weekly Review', icon: BarChart2 },
       { href: '/brief',    label: 'Weekly Brief',  icon: FileBarChart2 },
+    ],
+  },
+  {
+    label: 'Settings',
+    items: [
+      { href: '/backup', label: 'Backup & Restore', icon: HardDrive },
     ],
   },
 ];
