@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
   const {
     stakeholder_id = null,
     stakeholder_name,
+    relationship = 'direct_report',
     date,
     agenda = '[]',
     notes = '',
@@ -27,9 +28,9 @@ export async function POST(req: NextRequest) {
   } = body;
   if (!stakeholder_name?.trim() || !date) return NextResponse.json({ error: 'Name and date required' }, { status: 400 });
   const result = db.prepare(
-    `INSERT INTO one_on_ones (stakeholder_id, stakeholder_name, date, agenda, notes, my_commitments, their_commitments, themes, next_agenda)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(stakeholder_id, stakeholder_name.trim(), date, agenda, notes, my_commitments, their_commitments, themes, next_agenda);
+    `INSERT INTO one_on_ones (stakeholder_id, stakeholder_name, relationship, date, agenda, notes, my_commitments, their_commitments, themes, next_agenda)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(stakeholder_id, stakeholder_name.trim(), relationship, date, agenda, notes, my_commitments, their_commitments, themes, next_agenda);
   return NextResponse.json(db.prepare('SELECT * FROM one_on_ones WHERE id = ?').get(result.lastInsertRowid), { status: 201 });
 }
 
@@ -38,7 +39,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json();
   const { id, ...fields } = body;
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
-  const allowed = ['stakeholder_name', 'date', 'agenda', 'notes', 'my_commitments', 'their_commitments', 'themes', 'next_agenda'];
+  const allowed = ['stakeholder_name', 'relationship', 'date', 'agenda', 'notes', 'my_commitments', 'their_commitments', 'themes', 'next_agenda'];
   const updates = Object.entries(fields).filter(([k]) => allowed.includes(k));
   if (updates.length === 0) return NextResponse.json({ error: 'No fields' }, { status: 400 });
   const setClauses = updates.map(([k]) => `${k} = ?`).join(', ');

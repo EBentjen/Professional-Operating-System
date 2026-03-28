@@ -178,6 +178,7 @@ export interface OneOnOne {
   id: number;
   stakeholder_id: number | null;
   stakeholder_name: string;
+  relationship: 'reports_to' | 'direct_report' | 'peer';
   date: string;
   agenda: string; // JSON array
   notes: string;

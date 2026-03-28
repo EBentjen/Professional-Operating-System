@@ -233,15 +233,29 @@ function initSchema(db: Database.Database) {
 }
 
 function seedDefaults(db: Database.Database) {
+  // Add relationship column to one_on_ones if it doesn't exist yet
+  try {
+    db.exec(`ALTER TABLE one_on_ones ADD COLUMN relationship TEXT DEFAULT 'direct_report'`);
+  } catch {
+    // Column already exists — safe to ignore
+  }
+
   const count = db.prepare('SELECT COUNT(*) as c FROM stakeholders').get() as { c: number };
   if (count.c === 0) {
     const ins = db.prepare('INSERT INTO stakeholders (name, title, tier) VALUES (?, ?, ?)');
     ins.run('Dillon Rouse', 'Manager', 'primary');
+    ins.run('Kenney Dinh', 'Direct Report', 'secondary');
     ins.run('CEO', 'Chief Executive Officer', 'primary');
     ins.run('CFO', 'Chief Financial Officer', 'primary');
     ins.run('Board', 'Board of Directors', 'primary');
     ins.run('VP Sales', 'VP of Sales', 'secondary');
     ins.run('VP Engineering', 'VP of Engineering', 'secondary');
+  } else {
+    // Add Kenney Dinh if not already present
+    const kenney = db.prepare("SELECT id FROM stakeholders WHERE name = 'Kenney Dinh'").get();
+    if (!kenney) {
+      db.prepare('INSERT INTO stakeholders (name, title, tier) VALUES (?, ?, ?)').run('Kenney Dinh', 'Direct Report', 'secondary');
+    }
   }
 
   const evCount = db.prepare('SELECT COUNT(*) as c FROM financial_events').get() as { c: number };
