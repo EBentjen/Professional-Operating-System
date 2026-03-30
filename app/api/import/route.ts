@@ -19,7 +19,9 @@ const TABLE_ORDER = [
   'key_results',
   'financial_events',
   'templates',
+  'template_files',
   'learnings',
+  'stakeholder_projects',
 ];
 
 export async function POST(req: NextRequest) {
@@ -63,6 +65,12 @@ export async function POST(req: NextRequest) {
         stmt.run(...cols.map(c => row[c]));
       }
     }
+
+    // Migrate old template categories to new ones
+    db.prepare(`UPDATE templates SET category = 'modeling' WHERE category = 'budget'`).run();
+    db.prepare(`UPDATE templates SET category = 'strategy' WHERE category IN ('board','communication','meeting','hr','general')`).run();
+    db.prepare(`UPDATE template_files SET category = 'modeling' WHERE category = 'budget'`).run();
+    db.prepare(`UPDATE template_files SET category = 'strategy' WHERE category IN ('board','communication','meeting','hr','general')`).run();
 
     db.pragma('foreign_keys = ON');
   });

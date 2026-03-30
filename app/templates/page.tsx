@@ -11,17 +11,13 @@ import { cn } from '@/lib/utils';
 import type { Template, TemplateCategory, TemplateFile } from '@/lib/types';
 
 const CATEGORIES: { value: TemplateCategory; label: string }[] = [
-  { value: 'board', label: 'Board' },
-  { value: 'budget', label: 'Budget' },
-  { value: 'communication', label: 'Communication' },
-  { value: 'meeting', label: 'Meeting' },
-  { value: 'hr', label: 'HR / People' },
   { value: 'strategy', label: 'Strategy' },
-  { value: 'general', label: 'General' },
+  { value: 'prompts', label: 'Prompts' },
+  { value: 'modeling', label: 'Modeling' },
 ];
 
-const EMPTY_FORM = { title: '', category: 'general' as TemplateCategory, description: '', content: '', tags: '' };
-const EMPTY_FILE_FORM = { title: '', category: 'general' as TemplateCategory, description: '' };
+const EMPTY_FORM = { title: '', category: 'strategy' as TemplateCategory, description: '', content: '', tags: '' };
+const EMPTY_FILE_FORM = { title: '', category: 'strategy' as TemplateCategory, description: '' };
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;

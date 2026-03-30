@@ -210,7 +210,7 @@ function initSchema(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS templates (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
-      category TEXT DEFAULT 'general' CHECK(category IN ('board','budget','communication','hr','strategy','general','meeting')),
+      category TEXT DEFAULT 'strategy',
       description TEXT DEFAULT '',
       content TEXT NOT NULL,
       tags TEXT DEFAULT '',
@@ -244,7 +244,7 @@ function initSchema(db: Database.Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       filename TEXT NOT NULL,
-      category TEXT DEFAULT 'general' CHECK(category IN ('board','budget','communication','hr','strategy','general','meeting')),
+      category TEXT DEFAULT 'strategy',
       description TEXT DEFAULT '',
       mime_type TEXT DEFAULT 'application/octet-stream',
       file_size INTEGER DEFAULT 0,
@@ -261,6 +261,12 @@ function seedDefaults(db: Database.Database) {
   } catch {
     // Column already exists — safe to ignore
   }
+
+  // Migrate old template categories to new ones
+  db.prepare(`UPDATE templates SET category = 'modeling' WHERE category = 'budget'`).run();
+  db.prepare(`UPDATE templates SET category = 'strategy' WHERE category IN ('board','communication','meeting','hr','general')`).run();
+  db.prepare(`UPDATE template_files SET category = 'modeling' WHERE category = 'budget'`).run();
+  db.prepare(`UPDATE template_files SET category = 'strategy' WHERE category IN ('board','communication','meeting','hr','general')`).run();
 
   const count = db.prepare('SELECT COUNT(*) as c FROM stakeholders').get() as { c: number };
   if (count.c === 0) {
@@ -296,7 +302,7 @@ function seedDefaults(db: Database.Database) {
     const ins = db.prepare('INSERT INTO templates (title, category, description, content) VALUES (?, ?, ?, ?)');
     ins.run(
       'Board Meeting Prep',
-      'board',
+      'strategy',
       'Checklist and narrative structure for board meetings',
       `# Board Meeting Prep
 
@@ -326,7 +332,7 @@ function seedDefaults(db: Database.Database) {
     );
     ins.run(
       'Weekly 1:1 with Boss',
-      'meeting',
+      'strategy',
       'Standing agenda for weekly manager check-in',
       `# Weekly 1:1 Agenda
 
@@ -351,7 +357,7 @@ function seedDefaults(db: Database.Database) {
     );
     ins.run(
       'Month-End Close Communication',
-      'communication',
+      'strategy',
       'Template for distributing month-end results',
       `# [Month] Financial Results — [YYYY]
 

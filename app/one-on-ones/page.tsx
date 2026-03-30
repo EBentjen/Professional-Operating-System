@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Trash2, RefreshCw, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Users } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -155,12 +155,16 @@ function PersonSection({
   onAdd,
   onEdit,
   onDelete,
+  buttonLabel = 'New 1:1',
+  emptyLabel = 'Add first 1:1',
 }: {
   name: string;
   records: OneOnOne[];
   onAdd: () => void;
   onEdit: (r: OneOnOne) => void;
   onDelete: (id: number) => void;
+  buttonLabel?: string;
+  emptyLabel?: string;
 }) {
   const groups = groupByMonth(records);
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(() =>
@@ -192,14 +196,14 @@ function PersonSection({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="font-semibold text-zinc-900 dark:text-zinc-100">{name}</p>
-        <Button size="sm" onClick={onAdd}><Plus size={13} /> New 1:1</Button>
+        <Button size="sm" onClick={onAdd}><Plus size={13} /> {buttonLabel}</Button>
       </div>
 
       {records.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700 p-6 text-center">
           <p className="text-sm text-zinc-400">No meetings logged yet</p>
           <button onClick={onAdd} className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mt-1 underline underline-offset-2">
-            Add first 1:1
+            {emptyLabel}
           </button>
         </div>
       ) : (
@@ -262,14 +266,16 @@ export default function OneOnOnesPage() {
 
   // Split into sections
   const reportsTo = records.filter(r => r.relationship === 'reports_to');
-  const directReports = records.filter(r => r.relationship !== 'reports_to');
+  const directReports = records.filter(r => r.relationship === 'direct_report' || r.relationship === 'peer');
+  const teamReviews = records.filter(r => r.relationship === 'team_review');
 
-  // People under direct reports
   const directReportPeople = [...new Set(directReports.map(r => r.stakeholder_name))].sort();
+  const teamReviewTeams = [...new Set(teamReviews.map(r => r.stakeholder_name))].sort();
 
   function openAdd(defaults: Partial<typeof EMPTY_FORM> = {}) {
     setEditRecord(null);
-    setForm({ ...EMPTY_FORM, date: getNextMonday(), ...defaults });
+    const defaultDate = defaults.relationship === 'team_review' ? '' : getNextMonday();
+    setForm({ ...EMPTY_FORM, date: defaultDate, ...defaults });
     setModalOpen(true);
   }
 
@@ -371,12 +377,51 @@ export default function OneOnOnesPage() {
                 onDelete={deleteRecord}
               />
             ))}
-            {/* Add a new direct report person */}
             <button
               onClick={() => openAdd({ relationship: 'direct_report' })}
               className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
               + Add 1:1 with another direct report
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-zinc-100 dark:border-zinc-800" />
+
+      {/* Business Reviews */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Users size={14} className="text-zinc-400" />
+          <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-400">Business Reviews</h2>
+        </div>
+
+        {teamReviewTeams.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No business reviews yet"
+            description="Track notes from your monthly team reviews"
+            action={<Button onClick={() => openAdd({ stakeholder_name: 'New Markets Team', relationship: 'team_review', date: '' })}><Plus size={14} /> Add first review</Button>}
+          />
+        ) : (
+          <div className="space-y-6">
+            {teamReviewTeams.map(name => (
+              <PersonSection
+                key={name}
+                name={name}
+                records={teamReviews.filter(r => r.stakeholder_name === name)}
+                onAdd={() => openAdd({ stakeholder_name: name, relationship: 'team_review', date: '' })}
+                onEdit={openEdit}
+                onDelete={deleteRecord}
+                buttonLabel="New Review"
+                emptyLabel="Add first review"
+              />
+            ))}
+            <button
+              onClick={() => openAdd({ relationship: 'team_review', date: '' })}
+              className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            >
+              + Add review for another team
             </button>
           </div>
         )}
@@ -399,6 +444,7 @@ export default function OneOnOnesPage() {
               <option value="reports_to">Reports To (my manager)</option>
               <option value="direct_report">Direct Report</option>
               <option value="peer">Peer</option>
+              <option value="team_review">Business Review</option>
             </Select>
           </div>
           <DatePicker label="Date *" value={form.date} onChange={val => setForm(f => ({ ...f, date: val }))} />

@@ -6,7 +6,7 @@ export type StakeholderTier = 'primary' | 'secondary';
 export type OKRStatus = 'on_track' | 'at_risk' | 'off_track' | 'complete';
 export type WinCategory = 'leadership' | 'financial' | 'operational' | 'strategic' | 'team' | 'general';
 export type SourceType = 'book' | 'article' | 'podcast' | 'conversation' | 'course' | 'other';
-export type TemplateCategory = 'board' | 'budget' | 'communication' | 'hr' | 'strategy' | 'general' | 'meeting';
+export type TemplateCategory = 'strategy' | 'prompts' | 'modeling';
 export type EventType = 'deadline' | 'meeting' | 'review' | 'report' | 'close';
 export type CaptureStatus = 'inbox' | 'processed' | 'archived';
 
@@ -178,7 +178,7 @@ export interface OneOnOne {
   id: number;
   stakeholder_id: number | null;
   stakeholder_name: string;
-  relationship: 'reports_to' | 'direct_report' | 'peer';
+  relationship: 'reports_to' | 'direct_report' | 'peer' | 'team_review';
   date: string;
   agenda: string; // JSON array
   notes: string;
