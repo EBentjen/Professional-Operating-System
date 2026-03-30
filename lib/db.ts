@@ -229,6 +229,16 @@ function initSchema(db: Database.Database) {
       date TEXT DEFAULT (date('now')),
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS stakeholder_projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      stakeholder_id INTEGER NOT NULL REFERENCES stakeholders(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      status TEXT DEFAULT 'not_started' CHECK(status IN ('not_started','in_progress','blocked','done')),
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 

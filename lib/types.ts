@@ -274,6 +274,18 @@ export interface DashboardSummary {
   overdueDeliverables: Deliverable[];
 }
 
+// ─── Stakeholder Project ──────────────────────────────────────────────────────
+
+export interface StakeholderProject {
+  id: number;
+  stakeholder_id: number;
+  title: string;
+  status: PriorityStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Search Result ────────────────────────────────────────────────────────────
 
 export interface SearchResult {
