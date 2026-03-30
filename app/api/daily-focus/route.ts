@@ -47,11 +47,12 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const db = getDb();
-    const { id, is_complete, title, notes } = await req.json();
+    const { id, is_complete, title, notes, priority_id } = await req.json();
     const updates: [string, unknown][] = [];
     if (is_complete !== undefined) updates.push(['is_complete', is_complete ? 1 : 0]);
     if (title !== undefined) updates.push(['title', title]);
     if (notes !== undefined) updates.push(['notes', notes]);
+    if (priority_id !== undefined) updates.push(['priority_id', priority_id ?? null]);
 
     if (!updates.length) return NextResponse.json({ error: 'No valid fields' }, { status: 400 });
 

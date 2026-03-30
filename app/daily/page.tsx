@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, RefreshCw, Zap, CheckCircle2, Circle, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, RefreshCw, Zap, CheckCircle2, Circle, Trash2, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -22,6 +22,8 @@ export default function DailyPage() {
   const [loading, setLoading] = useState(true);
   const [addForm, setAddForm] = useState({ title: '', priority_id: '' });
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', priority_id: '' });
   const [promptIdx] = useState(() => Math.floor(Math.random() * FOCUS_PROMPTS.length));
 
   const today = todayISO();
@@ -78,6 +80,33 @@ export default function DailyPage() {
 
   async function deleteItem(id: number) {
     await fetch(`/api/daily-focus?id=${id}`, { method: 'DELETE' });
+    load();
+  }
+
+  function startEdit(item: DailyFocus) {
+    setEditingId(item.id);
+    setEditForm({
+      title: item.title,
+      priority_id: item.priority_id ? String(item.priority_id) : '',
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(id: number) {
+    if (!editForm.title.trim()) return;
+    await fetch('/api/daily-focus', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        title: editForm.title.trim(),
+        priority_id: editForm.priority_id ? Number(editForm.priority_id) : null,
+      }),
+    });
+    setEditingId(null);
     load();
   }
 
@@ -173,23 +202,66 @@ export default function DailyPage() {
                   >
                     {item.is_complete ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                   </button>
-                  <div className={cn('flex-1 min-w-0', item.is_complete && 'opacity-50')}>
-                    <p className={cn('text-sm font-medium text-zinc-900 dark:text-zinc-100', item.is_complete && 'line-through text-zinc-400')}>
-                      {item.title}
-                    </p>
-                    {item.priority_title && (
-                      <p className="text-xs text-zinc-500 mt-0.5">← {item.priority_title}</p>
-                    )}
-                    {!item.priority_id && !item.is_complete && (
-                      <p className="text-xs text-amber-500 mt-0.5">Not linked to a weekly priority</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => deleteItem(item.id)}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-red-500 transition-all flex-shrink-0"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+
+                  {editingId === item.id ? (
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <Input
+                        value={editForm.title}
+                        onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') saveEdit(item.id);
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                        autoFocus
+                      />
+                      <Select
+                        value={editForm.priority_id}
+                        onChange={e => setEditForm(f => ({ ...f, priority_id: e.target.value }))}
+                      >
+                        <option value="">Not linked to a priority</option>
+                        {priorities.map(p => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                        ))}
+                      </Select>
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={() => saveEdit(item.id)} disabled={!editForm.title.trim()}>
+                          <Check size={12} /> Save
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                          <X size={12} /> Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={cn('flex-1 min-w-0', item.is_complete && 'opacity-50')}>
+                      <p className={cn('text-sm font-medium text-zinc-900 dark:text-zinc-100', item.is_complete && 'line-through text-zinc-400')}>
+                        {item.title}
+                      </p>
+                      {item.priority_title && (
+                        <p className="text-xs text-zinc-500 mt-0.5">← {item.priority_title}</p>
+                      )}
+                      {!item.priority_id && !item.is_complete && (
+                        <p className="text-xs text-amber-500 mt-0.5">Not linked to a weekly priority</p>
+                      )}
+                    </div>
+                  )}
+
+                  {editingId !== item.id && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                      <button
+                        onClick={() => startEdit(item)}
+                        className="text-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        onClick={() => deleteItem(item.id)}
+                        className="text-zinc-300 hover:text-red-500"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
 
