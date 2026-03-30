@@ -19,6 +19,7 @@ const TABLES = [
   'key_results',
   'financial_events',
   'templates',
+  'template_files',
   'learnings',
 ];
 

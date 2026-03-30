@@ -286,6 +286,19 @@ export interface StakeholderProject {
   updated_at: string;
 }
 
+// ─── Template File ────────────────────────────────────────────────────────────
+
+export interface TemplateFile {
+  id: number;
+  title: string;
+  filename: string;
+  category: TemplateCategory;
+  description: string;
+  mime_type: string;
+  file_size: number;
+  created_at: string;
+}
+
 // ─── Search Result ────────────────────────────────────────────────────────────
 
 export interface SearchResult {

@@ -239,6 +239,18 @@ function initSchema(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS template_files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      category TEXT DEFAULT 'general' CHECK(category IN ('board','budget','communication','hr','strategy','general','meeting')),
+      description TEXT DEFAULT '',
+      mime_type TEXT DEFAULT 'application/octet-stream',
+      file_size INTEGER DEFAULT 0,
+      file_data TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 
