@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, RefreshCw, Zap, CheckCircle2, Circle, Trash2, AlertCircle, Pencil, Check, X } from 'lucide-react';
+import { Plus, RefreshCw, Zap, CheckCircle2, Circle, Trash2, AlertCircle, Pencil, Check, X, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -24,6 +24,9 @@ export default function DailyPage() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ title: '', priority_id: '' });
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyItems, setHistoryItems] = useState<DailyFocus[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [promptIdx] = useState(() => Math.floor(Math.random() * FOCUS_PROMPTS.length));
 
   const today = todayISO();
@@ -93,6 +96,16 @@ export default function DailyPage() {
 
   function cancelEdit() {
     setEditingId(null);
+  }
+
+  async function loadHistory() {
+    if (historyItems.length > 0) { setHistoryOpen(o => !o); return; }
+    setHistoryLoading(true);
+    setHistoryOpen(true);
+    const res = await fetch(`/api/daily-focus?lookback=7&date=${today}`);
+    const data = await res.json();
+    setHistoryItems(data.data);
+    setHistoryLoading(false);
   }
 
   async function saveEdit(id: number) {
@@ -294,6 +307,74 @@ export default function DailyPage() {
             </div>
           )}
         </CardBody>
+      </Card>
+
+      {/* Past Days */}
+      <Card>
+        <CardHeader onClick={loadHistory} className="cursor-pointer">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <History size={16} className="text-zinc-400" />
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Past Days</h2>
+            </div>
+            {historyOpen ? <ChevronUp size={15} className="text-zinc-400" /> : <ChevronDown size={15} className="text-zinc-400" />}
+          </div>
+        </CardHeader>
+
+        {historyOpen && (
+          <CardBody className="pt-0">
+            {historyLoading ? (
+              <div className="flex justify-center py-6"><RefreshCw size={16} className="animate-spin text-zinc-400" /></div>
+            ) : historyItems.length === 0 ? (
+              <p className="text-sm text-zinc-400 text-center py-4">No past focus items found.</p>
+            ) : (
+              <div className="space-y-5">
+                {Object.entries(
+                  historyItems.reduce((acc, item) => {
+                    if (!acc[item.focus_date]) acc[item.focus_date] = [];
+                    acc[item.focus_date].push(item);
+                    return acc;
+                  }, {} as Record<string, DailyFocus[]>)
+                ).map(([date, items]) => {
+                  const done = items.filter(i => i.is_complete).length;
+                  const label = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+                  return (
+                    <div key={date}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{label}</p>
+                        <span className={cn(
+                          'text-xs font-medium',
+                          done === items.length ? 'text-emerald-500' : 'text-zinc-400'
+                        )}>
+                          {done}/{items.length} done
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 pl-1">
+                        {items.map(item => (
+                          <div key={item.id} className="flex items-start gap-2">
+                            <span className="flex-shrink-0 mt-0.5">
+                              {item.is_complete
+                                ? <CheckCircle2 size={15} className="text-emerald-500" />
+                                : <Circle size={15} className="text-zinc-300 dark:text-zinc-600" />}
+                            </span>
+                            <div className={cn('flex-1 min-w-0', item.is_complete && 'opacity-60')}>
+                              <p className={cn('text-sm text-zinc-800 dark:text-zinc-200', item.is_complete && 'line-through text-zinc-400')}>
+                                {item.title}
+                              </p>
+                              {item.priority_title && (
+                                <p className="text-xs text-zinc-400 mt-0.5">← {item.priority_title}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardBody>
+        )}
       </Card>
 
       {/* This Week's Priorities for context */}

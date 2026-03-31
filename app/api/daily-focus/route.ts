@@ -7,6 +7,20 @@ export async function GET(req: NextRequest) {
     const db = getDb();
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') || todayISO();
+    const lookback = searchParams.get('lookback');
+
+    if (lookback) {
+      const days = Math.min(Number(lookback) || 7, 30);
+      const items = db.prepare(`
+        SELECT df.*, p.title as priority_title
+        FROM daily_focus df
+        LEFT JOIN priorities p ON p.id = df.priority_id
+        WHERE df.focus_date < ?
+        ORDER BY df.focus_date DESC, df.order_index ASC, df.created_at ASC
+        LIMIT ?
+      `).all(date, days * 10);
+      return NextResponse.json({ data: items });
+    }
 
     const items = db.prepare(`
       SELECT df.*, p.title as priority_title
