@@ -39,8 +39,23 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const db = getDb();
-    const { focus_date, priority_id, title, notes, order_index } = await req.json();
+    const body = await req.json();
 
+    // Bulk import: { items: [{focus_date, title, priority_id?}] }
+    if (Array.isArray(body.items)) {
+      const insert = db.prepare(
+        'INSERT OR IGNORE INTO daily_focus (focus_date, priority_id, title, notes, order_index) VALUES (?, ?, ?, ?, ?)'
+      );
+      const insertMany = db.transaction((items: { focus_date: string; title: string; priority_id?: number | null }[]) => {
+        for (const item of items) {
+          insert.run(item.focus_date, item.priority_id ?? null, item.title, null, 0);
+        }
+      });
+      insertMany(body.items);
+      return NextResponse.json({ ok: true, count: body.items.length }, { status: 201 });
+    }
+
+    const { focus_date, priority_id, title, notes, order_index } = body;
     const result = db.prepare(
       'INSERT INTO daily_focus (focus_date, priority_id, title, notes, order_index) VALUES (?, ?, ?, ?, ?)'
     ).run(focus_date || todayISO(), priority_id || null, title, notes || null, order_index || 0);

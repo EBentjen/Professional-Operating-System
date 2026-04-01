@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, RefreshCw, Zap, CheckCircle2, Circle, Trash2, AlertCircle, Pencil, Check, X, ChevronDown, ChevronUp, History } from 'lucide-react';
+import { Plus, RefreshCw, Zap, CheckCircle2, Circle, Trash2, AlertCircle, Pencil, Check, X, ChevronDown, ChevronUp, History, Upload } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Input';
+import { Input, Select, Textarea } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { todayISO, cn } from '@/lib/utils';
 import type { DailyFocus, Priority } from '@/lib/types';
@@ -27,6 +28,14 @@ export default function DailyPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyItems, setHistoryItems] = useState<DailyFocus[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Import state
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importTitle, setImportTitle] = useState('AP Approval');
+  const [importPreview, setImportPreview] = useState<{ date: string; label: string }[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importDone, setImportDone] = useState(false);
   const [promptIdx] = useState(() => Math.floor(Math.random() * FOCUS_PROMPTS.length));
 
   const today = todayISO();
@@ -98,6 +107,60 @@ export default function DailyPage() {
     setEditingId(null);
   }
 
+  const MONTHS: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+  };
+
+  function parseDates(raw: string): { date: string; label: string }[] {
+    const results: { date: string; label: string }[] = [];
+    const seen = new Set<string>();
+    for (const line of raw.split('\n')) {
+      // Match DD-Mon-YY or DD-Mon-YYYY or YYYY-MM-DD
+      const m1 = line.match(/(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);
+      const m2 = line.match(/(\d{4})-(\d{2})-(\d{2})/);
+      let iso = '';
+      if (m1) {
+        const day = m1[1].padStart(2, '0');
+        const mon = MONTHS[m1[2].toLowerCase()];
+        if (!mon) continue;
+        const yr = m1[3].length === 2 ? '20' + m1[3] : m1[3];
+        iso = `${yr}-${mon}-${day}`;
+      } else if (m2) {
+        iso = `${m2[1]}-${m2[2]}-${m2[3]}`;
+      } else {
+        continue;
+      }
+      if (seen.has(iso)) continue;
+      seen.add(iso);
+      const d = new Date(iso + 'T00:00:00');
+      const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      results.push({ date: iso, label });
+    }
+    return results.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  function handleImportTextChange(val: string) {
+    setImportText(val);
+    setImportPreview(parseDates(val));
+    setImportDone(false);
+  }
+
+  async function runImport() {
+    if (!importPreview.length || !importTitle.trim()) return;
+    setImporting(true);
+    await fetch('/api/daily-focus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: importPreview.map(p => ({ focus_date: p.date, title: importTitle.trim() })),
+      }),
+    });
+    setImporting(false);
+    setImportDone(true);
+    load();
+  }
+
   async function loadHistory() {
     if (historyItems.length > 0) { setHistoryOpen(o => !o); return; }
     setHistoryLoading(true);
@@ -138,15 +201,20 @@ export default function DailyPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <p className="text-xs text-zinc-400 font-medium uppercase tracking-wide">Daily Focus</p>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">{dayLabel}</h1>
-        {total > 0 && (
-          <p className="text-sm text-zinc-500 mt-1">
-            {done}/{total} complete
-            {allDone && <span className="ml-2 text-emerald-600 font-medium">— Strong day.</span>}
-          </p>
-        )}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wide">Daily Focus</p>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">{dayLabel}</h1>
+          {total > 0 && (
+            <p className="text-sm text-zinc-500 mt-1">
+              {done}/{total} complete
+              {allDone && <span className="ml-2 text-emerald-600 font-medium">— Strong day.</span>}
+            </p>
+          )}
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => { setImportOpen(true); setImportDone(false); }}>
+          <Upload size={14} /> Import Dates
+        </Button>
       </div>
 
       {/* Challenge Prompt */}
@@ -400,6 +468,65 @@ export default function DailyPage() {
           </CardBody>
         </Card>
       )}
+      {/* Import Dates Modal */}
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Import Dates as Focus Items" size="lg">
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-500">
+            Paste your schedule below. Dates in <code className="text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">DD-Mon-YY</code> or <code className="text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">YYYY-MM-DD</code> format are detected automatically.
+          </p>
+
+          <Input
+            label="Focus item title"
+            value={importTitle}
+            onChange={e => setImportTitle(e.target.value)}
+            placeholder="e.g. AP Approval"
+          />
+
+          <Textarea
+            label="Paste schedule data"
+            placeholder={"01-Apr-26\tWednesday\tApril\n03-Apr-26\tFriday\tApril\n..."}
+            value={importText}
+            onChange={e => handleImportTextChange(e.target.value)}
+            rows={6}
+            className="font-mono text-xs"
+          />
+
+          {importPreview.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-2">
+                {importPreview.length} date{importPreview.length !== 1 ? 's' : ''} detected
+              </p>
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 max-h-48 overflow-y-auto">
+                {importPreview.map((p, i) => (
+                  <div key={i} className={cn('flex items-center justify-between px-3 py-1.5 text-xs', i % 2 === 0 ? 'bg-zinc-50 dark:bg-zinc-800/50' : '')}>
+                    <span className="text-zinc-600 dark:text-zinc-400">{p.label}</span>
+                    <span className="text-zinc-400 font-mono">{p.date}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {importText && importPreview.length === 0 && (
+            <p className="text-xs text-amber-500">No dates detected. Make sure the format includes dates like <code>01-Apr-26</code>.</p>
+          )}
+
+          {importDone && (
+            <p className="text-xs text-emerald-600 font-medium">✓ {importPreview.length} focus items created successfully.</p>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              onClick={runImport}
+              disabled={!importPreview.length || !importTitle.trim() || importing || importDone}
+              className="flex-1"
+            >
+              {importing ? 'Importing…' : importDone ? '✓ Done' : `Import ${importPreview.length} Items`}
+            </Button>
+            <Button variant="secondary" onClick={() => setImportOpen(false)}>Close</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
