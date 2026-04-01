@@ -37,7 +37,7 @@ export default function ProjectsPage() {
     const pData = await pRes.json();
     const sData = await sRes.json();
     setProjects(Array.isArray(pData) ? pData : []);
-    setStakeholders(Array.isArray(sData) ? sData : []);
+    setStakeholders(Array.isArray(sData) ? sData : (sData.data ?? []));
     setLoading(false);
   }, []);
 
