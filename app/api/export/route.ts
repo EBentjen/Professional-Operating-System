@@ -21,6 +21,8 @@ const TABLES = [
   'templates',
   'template_files',
   'learnings',
+  'projects',
+  'project_items',
 ];
 
 export async function GET() {

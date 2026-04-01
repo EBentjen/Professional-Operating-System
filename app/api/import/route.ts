@@ -22,6 +22,8 @@ const TABLE_ORDER = [
   'template_files',
   'learnings',
   'stakeholder_projects',
+  'projects',
+  'project_items',
 ];
 
 export async function POST(req: NextRequest) {

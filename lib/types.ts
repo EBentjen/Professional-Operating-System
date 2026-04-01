@@ -286,6 +286,29 @@ export interface StakeholderProject {
   updated_at: string;
 }
 
+// ─── Project ─────────────────────────────────────────────────────────────────
+
+export interface Project {
+  id: number;
+  title: string;
+  status: PriorityStatus;
+  notes: string;
+  stakeholder_id: number | null;
+  stakeholder_name?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: ProjectItem[];
+}
+
+export interface ProjectItem {
+  id: number;
+  project_id: number;
+  title: string;
+  is_complete: number;
+  order_index: number;
+  created_at: string;
+}
+
 // ─── Template File ────────────────────────────────────────────────────────────
 
 export interface TemplateFile {

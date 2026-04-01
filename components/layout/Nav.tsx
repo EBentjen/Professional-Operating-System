@@ -21,6 +21,7 @@ import {
   Search,
   FileBarChart2,
   HardDrive,
+  FolderKanban,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -51,6 +52,7 @@ const NAV_SECTIONS = [
   {
     label: 'Plan',
     items: [
+      { href: '/projects',  label: 'Projects',  icon: FolderKanban },
       { href: '/okrs',      label: 'OKRs',      icon: TrendingUp },
       { href: '/calendar',  label: 'Calendar',  icon: CalendarDays },
       { href: '/templates', label: 'Templates', icon: FileText },
