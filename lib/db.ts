@@ -297,6 +297,25 @@ function seedDefaults(db: Database.Database) {
     ins.run('Full Financial Reviews Distributed', 'report', 20, 'monthly', 'indigo');
   }
 
+  // Seed AP Accountant Approval dates
+  const apCount = db.prepare("SELECT COUNT(*) as c FROM daily_focus WHERE title = 'AP Accountant Approvals'").get() as { c: number };
+  if (apCount.c === 0) {
+    const apInsert = db.prepare('INSERT INTO daily_focus (focus_date, title, order_index) VALUES (?, ?, 0)');
+    const apDates = [
+      '2026-04-01','2026-04-03','2026-04-06','2026-04-24',
+      '2026-05-01','2026-05-04','2026-05-06','2026-05-22',
+      '2026-06-01','2026-06-04','2026-06-05','2026-06-18',
+      '2026-07-01','2026-07-06','2026-07-20','2026-07-27',
+      '2026-08-03','2026-08-06','2026-08-07','2026-08-20',
+      '2026-09-02','2026-09-04','2026-09-23','2026-09-25',
+      '2026-10-02','2026-10-05','2026-10-07','2026-10-19',
+      '2026-11-02','2026-11-05','2026-11-19','2026-11-23',
+      '2026-12-03','2026-12-07','2026-12-17','2026-12-28',
+    ];
+    const insertAll = db.transaction(() => { for (const d of apDates) apInsert.run(d, 'AP Accountant Approvals'); });
+    insertAll();
+  }
+
   const tCount = db.prepare('SELECT COUNT(*) as c FROM templates').get() as { c: number };
   if (tCount.c === 0) {
     const ins = db.prepare('INSERT INTO templates (title, category, description, content) VALUES (?, ?, ?, ?)');
