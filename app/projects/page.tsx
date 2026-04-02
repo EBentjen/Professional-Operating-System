@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Plus, Trash2, RefreshCw, FolderKanban, ChevronDown, ChevronUp, Check, Circle, CheckCircle2, Pencil, X } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, FolderKanban, Check, Circle, CheckCircle2, Pencil, X, CalendarDays } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -247,23 +247,36 @@ function ProjectDetail({ project, onClose, onEdit, onDelete, onReload }: {
 }) {
   const [items, setItems] = useState<ProjectItem[]>(project.items || []);
   const [newItem, setNewItem] = useState('');
+  const [newItemDue, setNewItemDue] = useState('');
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editingItemTitle, setEditingItemTitle] = useState('');
+  const [editingItemDue, setEditingItemDue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const cfg = STATUS_CONFIG[project.status];
 
   useEffect(() => { setItems(project.items || []); }, [project]);
+
+  function formatDue(date: string) {
+    const d = new Date(date + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function isOverdue(item: ProjectItem) {
+    if (!item.due_date || item.is_complete) return false;
+    return item.due_date < new Date().toISOString().slice(0, 10);
+  }
 
   async function addItem() {
     if (!newItem.trim()) return;
     const res = await fetch('/api/project-items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: project.id, title: newItem.trim(), order_index: items.length }),
+      body: JSON.stringify({ project_id: project.id, title: newItem.trim(), due_date: newItemDue || null, order_index: items.length }),
     });
     const created = await res.json();
     setItems(prev => [...prev, created]);
     setNewItem('');
+    setNewItemDue('');
     onReload();
   }
 
@@ -282,9 +295,9 @@ function ProjectDetail({ project, onClose, onEdit, onDelete, onReload }: {
     await fetch('/api/project-items', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: item.id, title: editingItemTitle.trim() }),
+      body: JSON.stringify({ id: item.id, title: editingItemTitle.trim(), due_date: editingItemDue || null }),
     });
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, title: editingItemTitle.trim() } : i));
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, title: editingItemTitle.trim(), due_date: editingItemDue || null } : i));
     setEditingItemId(null);
     onReload();
   }
@@ -349,17 +362,33 @@ function ProjectDetail({ project, onClose, onEdit, onDelete, onReload }: {
                 </button>
 
                 {editingItemId === item.id ? (
-                  <input
-                    className="flex-1 text-sm bg-transparent border-b border-zinc-300 dark:border-zinc-600 focus:outline-none focus:border-zinc-500 text-zinc-900 dark:text-zinc-100"
-                    value={editingItemTitle}
-                    onChange={e => setEditingItemTitle(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') saveItemEdit(item); if (e.key === 'Escape') setEditingItemId(null); }}
-                    autoFocus
-                  />
+                  <div className="flex-1 flex flex-col gap-1">
+                    <input
+                      className="text-sm bg-transparent border-b border-zinc-300 dark:border-zinc-600 focus:outline-none focus:border-zinc-500 text-zinc-900 dark:text-zinc-100"
+                      value={editingItemTitle}
+                      onChange={e => setEditingItemTitle(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveItemEdit(item); if (e.key === 'Escape') setEditingItemId(null); }}
+                      autoFocus
+                    />
+                    <input
+                      type="date"
+                      className="text-xs bg-transparent border-b border-zinc-200 dark:border-zinc-700 focus:outline-none text-zinc-500 dark:text-zinc-400"
+                      value={editingItemDue}
+                      onChange={e => setEditingItemDue(e.target.value)}
+                    />
+                  </div>
                 ) : (
-                  <span className={cn('flex-1 text-sm', item.is_complete ? 'line-through text-zinc-400' : 'text-zinc-800 dark:text-zinc-200')}>
-                    {item.title}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className={cn('text-sm', item.is_complete ? 'line-through text-zinc-400' : 'text-zinc-800 dark:text-zinc-200')}>
+                      {item.title}
+                    </span>
+                    {item.due_date && (
+                      <p className={cn('text-xs mt-0.5 flex items-center gap-1', isOverdue(item) ? 'text-red-500' : 'text-zinc-400')}>
+                        <CalendarDays size={10} />
+                        {formatDue(item.due_date)}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {editingItemId === item.id ? (
@@ -369,7 +398,7 @@ function ProjectDetail({ project, onClose, onEdit, onDelete, onReload }: {
                   </div>
                 ) : (
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingItemId(item.id); setEditingItemTitle(item.title); }} className="text-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300"><Pencil size={12} /></button>
+                    <button onClick={() => { setEditingItemId(item.id); setEditingItemTitle(item.title); setEditingItemDue(item.due_date || ''); }} className="text-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300"><Pencil size={12} /></button>
                     <button onClick={() => deleteItem(item.id)} className="text-zinc-300 hover:text-red-500"><Trash2 size={12} /></button>
                   </div>
                 )}
@@ -377,18 +406,31 @@ function ProjectDetail({ project, onClose, onEdit, onDelete, onReload }: {
             ))}
 
             {/* Add item input */}
-            <div className="flex items-center gap-2 mt-2">
-              <Plus size={14} className="text-zinc-300 flex-shrink-0" />
-              <input
-                ref={inputRef}
-                className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-300 dark:placeholder:text-zinc-600 bg-transparent focus:outline-none"
-                placeholder="Add a sub-item…"
-                value={newItem}
-                onChange={e => setNewItem(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') addItem(); }}
-              />
+            <div className="mt-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <Plus size={14} className="text-zinc-300 flex-shrink-0" />
+                <input
+                  ref={inputRef}
+                  className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-300 dark:placeholder:text-zinc-600 bg-transparent focus:outline-none"
+                  placeholder="Add a sub-item…"
+                  value={newItem}
+                  onChange={e => setNewItem(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addItem(); }}
+                />
+                {newItem && (
+                  <button onClick={addItem} className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 font-medium transition-colors">Add</button>
+                )}
+              </div>
               {newItem && (
-                <button onClick={addItem} className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 font-medium transition-colors">Add</button>
+                <div className="flex items-center gap-2 pl-5">
+                  <CalendarDays size={11} className="text-zinc-300 flex-shrink-0" />
+                  <input
+                    type="date"
+                    className="text-xs bg-transparent text-zinc-400 focus:outline-none focus:text-zinc-600 dark:focus:text-zinc-300"
+                    value={newItemDue}
+                    onChange={e => setNewItemDue(e.target.value)}
+                  />
+                </div>
               )}
             </div>
           </div>

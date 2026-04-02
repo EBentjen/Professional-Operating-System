@@ -43,10 +43,9 @@ const NAV_SECTIONS = [
   {
     label: 'Capture',
     items: [
-      { href: '/capture',   label: 'Inbox',     icon: Inbox },
-      { href: '/decisions', label: 'Decisions', icon: Scale },
-      { href: '/wins',      label: 'Wins',      icon: Trophy },
-      { href: '/learning',  label: 'Learning',  icon: BookOpen },
+      { href: '/capture',   label: 'Inbox',    icon: Inbox },
+      { href: '/wins',      label: 'Wins',     icon: Trophy },
+      { href: '/learning',  label: 'Learning', icon: BookOpen },
     ],
   },
   {

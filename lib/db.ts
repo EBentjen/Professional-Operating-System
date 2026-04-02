@@ -281,6 +281,11 @@ function seedDefaults(db: Database.Database) {
     // Column already exists — safe to ignore
   }
 
+  // Add due_date to project_items if not present
+  try {
+    db.exec(`ALTER TABLE project_items ADD COLUMN due_date TEXT`);
+  } catch { /* already exists */ }
+
   // Migrate old template categories to new ones
   db.prepare(`UPDATE templates SET category = 'modeling' WHERE category = 'budget'`).run();
   db.prepare(`UPDATE templates SET category = 'strategy' WHERE category IN ('board','communication','meeting','hr','general')`).run();

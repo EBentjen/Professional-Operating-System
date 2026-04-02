@@ -305,6 +305,7 @@ export interface ProjectItem {
   project_id: number;
   title: string;
   is_complete: number;
+  due_date: string | null;
   order_index: number;
   created_at: string;
 }
