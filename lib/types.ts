@@ -293,6 +293,7 @@ export interface Project {
   title: string;
   status: PriorityStatus;
   notes: string;
+  due_date: string | null;
   stakeholder_id: number | null;
   stakeholder_name?: string | null;
   created_at: string;

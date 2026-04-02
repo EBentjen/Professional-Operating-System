@@ -19,7 +19,7 @@ const STATUS_CONFIG: Record<PriorityStatus, { label: string; dot: string; badge:
 
 const STATUS_ORDER: PriorityStatus[] = ['in_progress', 'blocked', 'not_started', 'done'];
 
-const EMPTY_FORM = { title: '', status: 'not_started' as PriorityStatus, notes: '', stakeholder_id: '' };
+const EMPTY_FORM = { title: '', status: 'not_started' as PriorityStatus, notes: '', stakeholder_id: '', due_date: '' };
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -60,13 +60,13 @@ export default function ProjectsPage() {
   function openEdit(p: Project, e: React.MouseEvent) {
     e.stopPropagation();
     setEditProject(p);
-    setForm({ title: p.title, status: p.status, notes: p.notes, stakeholder_id: p.stakeholder_id ? String(p.stakeholder_id) : '' });
+    setForm({ title: p.title, status: p.status, notes: p.notes, stakeholder_id: p.stakeholder_id ? String(p.stakeholder_id) : '', due_date: p.due_date || '' });
     setModalOpen(true);
   }
 
   async function save() {
     if (!form.title.trim()) return;
-    const body = { ...form, stakeholder_id: form.stakeholder_id ? Number(form.stakeholder_id) : null };
+    const body = { ...form, stakeholder_id: form.stakeholder_id ? Number(form.stakeholder_id) : null, due_date: form.due_date || null };
     if (editProject) {
       await fetch('/api/projects', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, id: editProject.id }) });
     } else {
@@ -184,6 +184,12 @@ export default function ProjectsPage() {
               {stakeholders.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </div>
+          <Input
+            label="Due Date"
+            type="date"
+            value={form.due_date}
+            onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+          />
           <Textarea label="Notes" placeholder="Context, goals, blockers..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={4} />
           <div className="flex gap-3 pt-2">
             <Button onClick={save} disabled={!form.title.trim()} className="flex-1">{editProject ? 'Save' : 'Create Project'}</Button>
@@ -224,6 +230,12 @@ function ProjectCard({ project: p, active, onClick, onEdit, onDelete }: {
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded', cfg.badge)}>{cfg.label}</span>
               {p.stakeholder_name && <span className="text-xs text-zinc-400">{p.stakeholder_name}</span>}
+              {p.due_date && (
+                <span className={cn('text-xs flex items-center gap-1', p.due_date < new Date().toISOString().slice(0,10) && p.status !== 'done' ? 'text-red-500' : 'text-zinc-400')}>
+                  <CalendarDays size={10} />
+                  {new Date(p.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              )}
               {items.length > 0 && (
                 <span className="text-xs text-zinc-400 ml-auto">{done}/{items.length} items</span>
               )}

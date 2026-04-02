@@ -281,6 +281,11 @@ function seedDefaults(db: Database.Database) {
     // Column already exists — safe to ignore
   }
 
+  // Add due_date to projects if not present
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN due_date TEXT`);
+  } catch { /* already exists */ }
+
   // Add due_date to project_items if not present
   try {
     db.exec(`ALTER TABLE project_items ADD COLUMN due_date TEXT`);

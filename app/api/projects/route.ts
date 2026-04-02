@@ -29,11 +29,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const db = getDb();
-  const { title, status = 'not_started', notes = '', stakeholder_id = null } = await req.json();
+  const { title, status = 'not_started', notes = '', stakeholder_id = null, due_date = null } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: 'Title required' }, { status: 400 });
   const result = db.prepare(
-    `INSERT INTO projects (title, status, notes, stakeholder_id) VALUES (?, ?, ?, ?)`
-  ).run(title.trim(), status, notes, stakeholder_id || null);
+    `INSERT INTO projects (title, status, notes, stakeholder_id, due_date) VALUES (?, ?, ?, ?, ?)`
+  ).run(title.trim(), status, notes, stakeholder_id || null, due_date || null);
   const row = db.prepare(`SELECT p.*, s.name as stakeholder_name FROM projects p LEFT JOIN stakeholders s ON s.id = p.stakeholder_id WHERE p.id = ?`).get(result.lastInsertRowid);
   return NextResponse.json(row, { status: 201 });
 }
@@ -42,7 +42,7 @@ export async function PATCH(req: NextRequest) {
   const db = getDb();
   const { id, ...fields } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
-  const allowed = ['title', 'status', 'notes', 'stakeholder_id'];
+  const allowed = ['title', 'status', 'notes', 'stakeholder_id', 'due_date'];
   const updates = Object.entries(fields).filter(([k]) => allowed.includes(k));
   if (!updates.length) return NextResponse.json({ error: 'No fields' }, { status: 400 });
   const setClauses = updates.map(([k]) => `${k} = ?`).join(', ');
