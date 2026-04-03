@@ -1,6 +1,7 @@
 // ─── Core Status Types ────────────────────────────────────────────────────────
 
 export type PriorityStatus = 'not_started' | 'in_progress' | 'blocked' | 'done';
+export type ProjectStatus = 'not_started' | 'in_progress' | 'in_review' | 'blocked' | 'done';
 export type ImpactLevel = 'high' | 'medium' | 'low';
 export type StakeholderTier = 'primary' | 'secondary';
 export type OKRStatus = 'on_track' | 'at_risk' | 'off_track' | 'complete';
@@ -291,7 +292,7 @@ export interface StakeholderProject {
 export interface Project {
   id: number;
   title: string;
-  status: PriorityStatus;
+  status: ProjectStatus;
   notes: string;
   due_date: string | null;
   stakeholder_id: number | null;

@@ -8,24 +8,25 @@ import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
-import type { Project, ProjectItem, Stakeholder, PriorityStatus } from '@/lib/types';
+import type { Project, ProjectItem, Stakeholder, ProjectStatus } from '@/lib/types';
 
-const STATUS_CONFIG: Record<PriorityStatus, { label: string; dot: string; badge: string }> = {
-  not_started: { label: 'Not Started', dot: 'bg-zinc-300 dark:bg-zinc-600',    badge: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400' },
-  in_progress:  { label: 'In Progress', dot: 'bg-blue-500',                    badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  blocked:      { label: 'Blocked',     dot: 'bg-red-500',                     badge: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  done:         { label: 'Done',        dot: 'bg-emerald-500',                  badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+const STATUS_CONFIG: Record<ProjectStatus, { label: string; dot: string; badge: string }> = {
+  not_started: { label: 'Not Started', dot: 'bg-zinc-300 dark:bg-zinc-600',   badge: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400' },
+  in_progress:  { label: 'In Progress', dot: 'bg-blue-500',                   badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  in_review:    { label: 'In Review',   dot: 'bg-purple-500',                 badge: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  blocked:      { label: 'Blocked',     dot: 'bg-red-500',                    badge: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+  done:         { label: 'Done',        dot: 'bg-emerald-500',                badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
 };
 
-const STATUS_ORDER: PriorityStatus[] = ['in_progress', 'blocked', 'not_started', 'done'];
+const STATUS_ORDER: ProjectStatus[] = ['in_progress', 'in_review', 'blocked', 'not_started', 'done'];
 
-const EMPTY_FORM = { title: '', status: 'not_started' as PriorityStatus, notes: '', stakeholder_id: '', due_date: '' };
+const EMPTY_FORM = { title: '', status: 'not_started' as ProjectStatus, notes: '', stakeholder_id: '', due_date: '' };
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<PriorityStatus | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<ProjectStatus | 'all'>('all');
   const [selected, setSelected] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -60,7 +61,7 @@ export default function ProjectsPage() {
   function openEdit(p: Project, e: React.MouseEvent) {
     e.stopPropagation();
     setEditProject(p);
-    setForm({ title: p.title, status: p.status, notes: p.notes, stakeholder_id: p.stakeholder_id ? String(p.stakeholder_id) : '', due_date: p.due_date || '' });
+    setForm({ title: p.title, status: p.status as ProjectStatus, notes: p.notes, stakeholder_id: p.stakeholder_id ? String(p.stakeholder_id) : '', due_date: p.due_date || '' });
     setModalOpen(true);
   }
 
@@ -176,7 +177,7 @@ export default function ProjectsPage() {
         <div className="space-y-4">
           <Input label="Title *" placeholder="e.g. Q3 Budget Model" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} autoFocus />
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as PriorityStatus }))}>
+            <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as ProjectStatus }))}>
               {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}
             </Select>
             <Select label="Stakeholder" value={form.stakeholder_id} onChange={e => setForm(f => ({ ...f, stakeholder_id: e.target.value }))}>

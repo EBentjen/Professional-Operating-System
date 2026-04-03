@@ -10,13 +10,22 @@ import { DatePicker } from '@/components/ui/DatePicker';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatDate, cn } from '@/lib/utils';
-import type { Stakeholder, FollowUp, Priority, StakeholderProject, PriorityStatus } from '@/lib/types';
+import type { Stakeholder, FollowUp, Priority, StakeholderProject, PriorityStatus, Project, ProjectStatus } from '@/lib/types';
 
 interface StakeholderWithContext extends Stakeholder {
   priorities: (Priority & { week_start?: string })[];
   followUps: FollowUp[];
   projects: StakeholderProject[];
+  trackerProjects: Project[];
 }
+
+const PROJECT_STATUS_CONFIG: Record<ProjectStatus, { label: string; dot: string; text: string }> = {
+  not_started: { label: 'Not Started', dot: 'bg-zinc-400',     text: 'text-zinc-500' },
+  in_progress:  { label: 'In Progress', dot: 'bg-blue-500',    text: 'text-blue-600 dark:text-blue-400' },
+  in_review:    { label: 'In Review',   dot: 'bg-purple-500',  text: 'text-purple-600 dark:text-purple-400' },
+  blocked:      { label: 'Blocked',     dot: 'bg-red-500',     text: 'text-red-600 dark:text-red-400' },
+  done:         { label: 'Done',        dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+};
 
 const STATUS_CONFIG: Record<PriorityStatus, { label: string; dot: string; text: string }> = {
   not_started: { label: 'Not Started', dot: 'bg-zinc-400',    text: 'text-zinc-500' },
@@ -44,16 +53,18 @@ export default function StakeholdersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sRes, fRes, wRes, pjRes] = await Promise.all([
+      const [sRes, fRes, wRes, pjRes, tpRes] = await Promise.all([
         fetch('/api/stakeholders'),
         fetch('/api/follow-ups?open=true'),
         fetch('/api/weeks?current=true'),
         fetch('/api/stakeholder-projects'),
+        fetch('/api/projects'),
       ]);
       const sData = await sRes.json();
       const fData = await fRes.json();
       const wData = await wRes.json();
       const pjData: StakeholderProject[] = await pjRes.json();
+      const tpData: Project[] = await tpRes.json();
 
       const stakeholderList: Stakeholder[] = sData.data;
       const followUpList: FollowUp[] = fData.data;
@@ -71,6 +82,7 @@ export default function StakeholdersPage() {
         priorities: priorities.filter(p => p.stakeholders?.some(ps => ps.id === s.id)),
         followUps: followUpList.filter(f => f.stakeholder_id === s.id),
         projects: pjData.filter(p => p.stakeholder_id === s.id),
+        trackerProjects: tpData.filter(p => p.stakeholder_id === s.id),
       }));
 
       setStakeholders(enriched);
@@ -362,6 +374,39 @@ export default function StakeholdersPage() {
               <p className="text-xs text-zinc-400 mt-1.5">Click the status dot to advance: Not Started → In Progress → Blocked → Done</p>
             </div>
 
+            {/* Tracker Projects */}
+            {selectedStakeholder.trackerProjects.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-2">
+                  From Project Tracker
+                </p>
+                <div className="space-y-1.5">
+                  {selectedStakeholder.trackerProjects.map(p => {
+                    const st = PROJECT_STATUS_CONFIG[p.status as ProjectStatus] || PROJECT_STATUS_CONFIG.not_started;
+                    return (
+                      <div key={p.id} className="flex items-start gap-3 p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                        <span className={cn('block w-2.5 h-2.5 rounded-full shrink-0 mt-0.5', st.dot)} />
+                        <div className="flex-1 min-w-0">
+                          <p className={cn('text-sm font-medium', p.status === 'done' && 'line-through text-zinc-400')}>
+                            {p.title}
+                          </p>
+                          {p.notes && <p className="text-xs text-zinc-500 mt-0.5 truncate">{p.notes}</p>}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={cn('text-xs', st.text)}>{st.label}</span>
+                            {p.due_date && (
+                              <span className={cn('text-xs', p.due_date < new Date().toISOString().slice(0,10) && p.status !== 'done' ? 'text-red-500' : 'text-zinc-400')}>
+                                · Due {new Date(p.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Active Priorities */}
             {selectedStakeholder.priorities.length > 0 && (
               <div>
@@ -477,7 +522,12 @@ export default function StakeholdersPage() {
 function StakeholderCard({ stakeholder, onClick }: { stakeholder: StakeholderWithContext; onClick: () => void }) {
   const [showProjects, setShowProjects] = useState(false);
   const activeProjects = stakeholder.projects.filter(p => p.status !== 'done');
-  const blockedProjects = activeProjects.filter(p => p.status === 'blocked');
+  const activeTrackerProjects = stakeholder.trackerProjects.filter(p => p.status !== 'done');
+  const allActiveProjects = activeProjects.length + activeTrackerProjects.length;
+  const blockedProjects = [
+    ...activeProjects.filter(p => p.status === 'blocked'),
+    ...activeTrackerProjects.filter(p => p.status === 'blocked'),
+  ];
 
   return (
     <Card className="transition-all">
@@ -494,9 +544,9 @@ function StakeholderCard({ stakeholder, onClick }: { stakeholder: StakeholderWit
                 {blockedProjects.length} blocked
               </Badge>
             )}
-            {activeProjects.length > 0 && blockedProjects.length === 0 && (
+            {allActiveProjects > 0 && blockedProjects.length === 0 && (
               <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                {activeProjects.length} project{activeProjects.length !== 1 ? 's' : ''}
+                {allActiveProjects} project{allActiveProjects !== 1 ? 's' : ''}
               </Badge>
             )}
             {stakeholder.followUps.length > 0 && (
