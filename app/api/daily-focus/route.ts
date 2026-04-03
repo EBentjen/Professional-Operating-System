@@ -22,6 +22,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: items });
     }
 
+    // Range query for weekly view: ?week_start=&week_end=
+    const weekStart = searchParams.get('week_start');
+    const weekEnd = searchParams.get('week_end');
+    if (weekStart && weekEnd) {
+      const items = db.prepare(`
+        SELECT df.*, p.title as priority_title
+        FROM daily_focus df
+        LEFT JOIN priorities p ON p.id = df.priority_id
+        WHERE df.focus_date >= ? AND df.focus_date <= ? AND df.priority_id IS NOT NULL
+        ORDER BY df.focus_date ASC, df.order_index ASC
+      `).all(weekStart, weekEnd);
+      return NextResponse.json({ data: items });
+    }
+
     const items = db.prepare(`
       SELECT df.*, p.title as priority_title
       FROM daily_focus df
