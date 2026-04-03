@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, AlertCircle, RefreshCw, Target } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, AlertCircle, RefreshCw, Target, CheckCircle2, Circle } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -11,7 +11,7 @@ import { StatusBadge, ImpactBadge } from '@/components/ui/StatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatDate, formatWeekRange, cn } from '@/lib/utils';
-import type { Priority, Week, Stakeholder, Deliverable, PriorityStatus, ImpactLevel } from '@/lib/types';
+import type { Priority, Week, Stakeholder, Deliverable, DailyFocus, PriorityStatus, ImpactLevel } from '@/lib/types';
 
 const CHALLENGE_PROMPTS = [
   "What specific outcome proves this priority was completed?",
@@ -25,6 +25,7 @@ export default function WeeklyPage() {
   const [week, setWeek] = useState<Week | null>(null);
   const [priorities, setPriorities] = useState<Priority[]>([]);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
+  const [dailyTasksByPriority, setDailyTasksByPriority] = useState<Record<number, DailyFocus[]>>({});
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editPriority, setEditPriority] = useState<Priority | null>(null);
@@ -51,9 +52,21 @@ export default function WeeklyPage() {
       setWeek(currentWeek);
       setStakeholders(sData.data);
 
-      const pRes = await fetch(`/api/priorities?week_id=${currentWeek.id}`);
+      const [pRes, dfRes] = await Promise.all([
+        fetch(`/api/priorities?week_id=${currentWeek.id}`),
+        fetch(`/api/daily-focus?week_start=${currentWeek.week_start}&week_end=${currentWeek.week_end}`),
+      ]);
       const pData = await pRes.json();
+      const dfData = await dfRes.json();
       setPriorities(pData.data);
+
+      const grouped: Record<number, DailyFocus[]> = {};
+      for (const item of (dfData.data as DailyFocus[])) {
+        if (!item.priority_id) continue;
+        if (!grouped[item.priority_id]) grouped[item.priority_id] = [];
+        grouped[item.priority_id].push(item);
+      }
+      setDailyTasksByPriority(grouped);
     } finally {
       setLoading(false);
     }
@@ -341,6 +354,30 @@ export default function WeeklyPage() {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Daily Tasks */}
+                      {(dailyTasksByPriority[p.id]?.length ?? 0) > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-2">Daily Tasks This Week</p>
+                          <ul className="space-y-1.5">
+                            {dailyTasksByPriority[p.id].map(task => (
+                              <li key={task.id} className="flex items-center gap-2 text-sm">
+                                {task.is_complete ? (
+                                  <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                                ) : (
+                                  <Circle size={14} className="text-zinc-300 dark:text-zinc-600 flex-shrink-0" />
+                                )}
+                                <span className={cn('flex-1', task.is_complete && 'line-through text-zinc-400')}>
+                                  {task.title}
+                                </span>
+                                <span className="text-xs text-zinc-400 flex-shrink-0">
+                                  {formatDate(task.focus_date)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       {/* Stakeholders */}
                       <div>
