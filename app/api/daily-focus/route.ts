@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: items });
     }
 
-    // Range query for weekly view: ?week_start=&week_end=
+    // Range query for weekly view: ?week_start=&week_end= (priority-linked items only)
     const weekStart = searchParams.get('week_start');
     const weekEnd = searchParams.get('week_end');
     if (weekStart && weekEnd) {
@@ -33,6 +33,20 @@ export async function GET(req: NextRequest) {
         WHERE df.focus_date >= ? AND df.focus_date <= ? AND df.priority_id IS NOT NULL
         ORDER BY df.focus_date ASC, df.order_index ASC
       `).all(weekStart, weekEnd);
+      return NextResponse.json({ data: items });
+    }
+
+    // General date range: ?from=X&to=Y (all items, used by calendar)
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    if (from && to) {
+      const items = db.prepare(`
+        SELECT df.*, p.title as priority_title
+        FROM daily_focus df
+        LEFT JOIN priorities p ON p.id = df.priority_id
+        WHERE df.focus_date >= ? AND df.focus_date <= ?
+        ORDER BY df.focus_date ASC, df.order_index ASC
+      `).all(from, to);
       return NextResponse.json({ data: items });
     }
 

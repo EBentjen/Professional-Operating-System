@@ -11,7 +11,6 @@ import {
   Lightbulb,
   BarChart2,
   Inbox,
-  Scale,
   Trophy,
   Users2,
   TrendingUp,
@@ -22,6 +21,8 @@ import {
   FileBarChart2,
   HardDrive,
   FolderKanban,
+  ClipboardList,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -38,6 +39,8 @@ const NAV_SECTIONS = [
     items: [
       { href: '/stakeholders', label: 'Stakeholders', icon: Users },
       { href: '/one-on-ones',  label: '1:1 Notes',    icon: Users2 },
+      { href: '/follow-ups',   label: 'Follow-Ups',   icon: ClipboardList },
+      { href: '/prep',         label: 'Meeting Prep', icon: ClipboardCheck },
     ],
   },
   {

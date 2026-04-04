@@ -1,30 +1,30 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Trash2, RefreshCw, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
-import type { FinancialEvent, EventType } from '@/lib/types';
+import type { FinancialEvent, EventType, DailyFocus } from '@/lib/types';
 
 const COLOR_MAP: Record<string, string> = {
-  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800',
-  violet: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-violet-200 dark:border-violet-800',
-  amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+  blue:    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+  violet:  'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-violet-200 dark:border-violet-800',
+  amber:   'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800',
   emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
-  sky: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 border-sky-200 dark:border-sky-800',
-  indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
-  red: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
-  zinc: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700',
+  sky:     'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 border-sky-200 dark:border-sky-800',
+  indigo:  'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
+  red:     'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
+  zinc:    'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700',
 };
 
 const DOT_MAP: Record<string, string> = {
   blue: 'bg-blue-500', violet: 'bg-violet-500', amber: 'bg-amber-500',
   emerald: 'bg-emerald-500', sky: 'bg-sky-500', indigo: 'bg-indigo-500',
-  red: 'bg-red-500', zinc: 'bg-zinc-500',
+  red: 'bg-red-500', zinc: 'bg-zinc-400',
 };
 
 const TYPE_LABELS: Record<EventType, string> = {
@@ -43,38 +43,106 @@ function getNthBusinessDay(year: number, month: number, n: number): Date {
   return result;
 }
 
+function resolveEventDate(event: FinancialEvent, year: number, month: number): Date | null {
+  if (event.bd_day) return getNthBusinessDay(year, month, event.bd_day);
+  if (event.specific_date) return new Date(event.specific_date + 'T00:00:00');
+  return null;
+}
+
 function formatBDDate(bdDay: number): string {
   const now = new Date();
   const d = getNthBusinessDay(now.getFullYear(), now.getMonth(), bdDay);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function getDaysUntil(bdDay: number): number {
+function getDaysUntil(event: FinancialEvent): number | null {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const target = getNthBusinessDay(now.getFullYear(), now.getMonth(), bdDay);
-  const diff = Math.round((target.getTime() - now.getTime()) / 86400000);
-  // If in past this month, check next month
-  if (diff < -1) {
-    const nextTarget = getNthBusinessDay(now.getFullYear(), now.getMonth() + 1, bdDay);
-    return Math.round((nextTarget.getTime() - now.getTime()) / 86400000);
+
+  if (event.bd_day) {
+    const target = getNthBusinessDay(now.getFullYear(), now.getMonth(), event.bd_day);
+    const diff = Math.round((target.getTime() - now.getTime()) / 86400000);
+    if (diff < -1) {
+      const nextTarget = getNthBusinessDay(now.getFullYear(), now.getMonth() + 1, event.bd_day);
+      return Math.round((nextTarget.getTime() - now.getTime()) / 86400000);
+    }
+    return diff;
   }
-  return diff;
+  if (event.specific_date) {
+    const target = new Date(event.specific_date + 'T00:00:00');
+    return Math.round((target.getTime() - now.getTime()) / 86400000);
+  }
+  return null;
+}
+
+// Build a flat list of upcoming events (next 45 days) sorted by actual date
+interface UpcomingItem {
+  date: Date;
+  label: string;
+  type: 'event' | 'focus';
+  color: string;
+  event?: FinancialEvent;
+  focus?: DailyFocus;
+}
+
+function buildUpcoming(events: FinancialEvent[], focusItems: DailyFocus[]): UpcomingItem[] {
+  const today = new Date(new Date().toDateString());
+  const horizon = new Date(today);
+  horizon.setDate(today.getDate() + 45);
+
+  const items: UpcomingItem[] = [];
+
+  // Financial events — project across this month and next if recurring
+  for (const ev of events) {
+    for (let mOffset = 0; mOffset <= 2; mOffset++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + mOffset, 1);
+      const resolved = resolveEventDate(ev, d.getFullYear(), d.getMonth());
+      if (!resolved) continue;
+      if (resolved >= today && resolved <= horizon) {
+        items.push({ date: resolved, label: ev.title, type: 'event', color: ev.color, event: ev });
+        break; // only add first upcoming occurrence
+      }
+    }
+  }
+
+  // Daily focus items with dates in the upcoming window
+  for (const f of focusItems) {
+    const d = new Date(f.focus_date + 'T00:00:00');
+    if (d >= today && d <= horizon) {
+      items.push({ date: d, label: f.title, type: 'focus', color: 'zinc', focus: f });
+    }
+  }
+
+  return items.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 const EMPTY_FORM = { title: '', event_type: 'deadline' as EventType, bd_day: '', specific_date: '', recurring: 'monthly', notes: '', color: 'zinc' };
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<FinancialEvent[]>([]);
+  const [focusItems, setFocusItems] = useState<DailyFocus[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<FinancialEvent | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [allEventsOpen, setAllEventsOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/financial-calendar');
-    setEvents(await res.json());
+    const today = new Date();
+    const horizon = new Date(today);
+    horizon.setDate(today.getDate() + 45);
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+    const [evRes, focusRes] = await Promise.all([
+      fetch('/api/financial-calendar'),
+      fetch(`/api/daily-focus?from=${fmt(today)}&to=${fmt(horizon)}`),
+    ]);
+    const evData = await evRes.json();
+    const focusData = await focusRes.json();
+
+    setEvents(Array.isArray(evData) ? evData : []);
+    setFocusItems(focusData.data ?? []);
     setLoading(false);
   }, []);
 
@@ -117,19 +185,16 @@ export default function CalendarPage() {
     load();
   }
 
-  // Sort by BD day, then specific date
-  const sorted = [...events].sort((a, b) => {
-    const aDay = a.bd_day ?? 999;
-    const bDay = b.bd_day ?? 999;
-    return aDay - bDay;
-  });
+  const upcoming = buildUpcoming(events, focusItems);
+  const sorted = [...events].sort((a, b) => (a.bd_day ?? 999) - (b.bd_day ?? 999));
+  const today = new Date(new Date().toDateString());
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Financial Calendar</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Recurring close dates and key deadlines</p>
+          <p className="text-sm text-zinc-500 mt-0.5">Recurring close dates, key deadlines, and scheduled tasks</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={load}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></Button>
@@ -137,62 +202,144 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Current month header */}
-      <div className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide opacity-60 mb-1">This Month</p>
-        <p className="text-xl font-bold">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-        <p className="text-sm opacity-70 mt-0.5">Dates shown are calculated from business days</p>
-      </div>
-
-      {sorted.length === 0 && !loading ? (
-        <EmptyState icon={CalendarDays} title="No events yet" description="Your close calendar is empty." action={<Button onClick={openAdd}><Plus size={14} /> Add first event</Button>} />
-      ) : (
-        <div className="space-y-2">
-          {sorted.map(e => {
-            const daysUntil = e.bd_day ? getDaysUntil(e.bd_day) : null;
-            const dateStr = e.bd_day ? formatBDDate(e.bd_day) : e.specific_date || '';
-            const isUrgent = daysUntil !== null && daysUntil >= 0 && daysUntil <= 2;
-            const isPast = daysUntil !== null && daysUntil < 0;
-
-            return (
-              <Card key={e.id} hoverable onClick={() => openEdit(e)}>
-                <CardBody className="py-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn('w-2 h-2 rounded-full shrink-0', DOT_MAP[e.color] || DOT_MAP.zinc)} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-zinc-900 dark:text-zinc-100">{e.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className={cn('text-xs px-1.5 py-0.5 rounded border font-medium', COLOR_MAP[e.color] || COLOR_MAP.zinc)}>
-                              {TYPE_LABELS[e.event_type]}
-                            </span>
-                            {e.bd_day && <span className="text-xs text-zinc-500">BD{e.bd_day}</span>}
-                            <span className="text-xs text-zinc-500">{dateStr}</span>
-                            {e.recurring !== 'once' && <span className="text-xs text-zinc-400 capitalize">{e.recurring}</span>}
-                          </div>
-                          {e.notes && <p className="text-xs text-zinc-400 mt-0.5">{e.notes}</p>}
-                        </div>
-                        {daysUntil !== null && (
-                          <span className={cn(
-                            'shrink-0 text-xs font-semibold px-2 py-1 rounded-lg',
-                            isPast ? 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800' :
-                            isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                            daysUntil <= 7 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                            'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                          )}>
-                            {isPast ? 'Passed' : daysUntil === 0 ? 'Today' : `${daysUntil}d`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+      {/* Upcoming Timeline */}
+      {upcoming.length > 0 && (
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+          <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide opacity-60 mb-0.5">Upcoming — Next 45 Days</p>
+              <p className="text-base font-bold">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            </div>
+            <span className="text-xs opacity-50">{upcoming.length} event{upcoming.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {upcoming.map((item, idx) => {
+              const daysAway = Math.round((item.date.getTime() - today.getTime()) / 86400000);
+              const isToday = daysAway === 0;
+              const isSoon = daysAway <= 3;
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-zinc-900',
+                    item.type === 'event' && 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  )}
+                  onClick={() => item.event && openEdit(item.event)}
+                >
+                  {/* Date column */}
+                  <div className="w-12 text-right flex-shrink-0">
+                    <p className={cn('text-xs font-bold', isToday ? 'text-red-500' : 'text-zinc-400')}>
+                      {item.date.toLocaleDateString('en-US', { month: 'short' })}
+                    </p>
+                    <p className={cn('text-lg font-bold leading-none', isToday ? 'text-red-500' : 'text-zinc-800 dark:text-zinc-200')}>
+                      {item.date.getDate()}
+                    </p>
                   </div>
-                </CardBody>
-              </Card>
-            );
-          })}
+
+                  {/* Dot */}
+                  <div className={cn('w-2 h-2 rounded-full flex-shrink-0', DOT_MAP[item.color] || DOT_MAP.zinc)} />
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-sm font-medium', item.type === 'focus' ? 'text-zinc-500 dark:text-zinc-400' : 'text-zinc-900 dark:text-zinc-100')}>
+                      {item.label}
+                    </p>
+                    {item.event && (
+                      <p className="text-xs text-zinc-400">
+                        {TYPE_LABELS[item.event.event_type]}
+                        {item.event.bd_day && ` · BD${item.event.bd_day}`}
+                        {item.event.recurring !== 'once' && ` · ${item.event.recurring}`}
+                      </p>
+                    )}
+                    {item.type === 'focus' && (
+                      <p className="text-xs text-zinc-400">Scheduled task</p>
+                    )}
+                  </div>
+
+                  {/* Days away */}
+                  <span className={cn(
+                    'text-xs font-semibold px-2 py-1 rounded-lg flex-shrink-0',
+                    isToday ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                    isSoon  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                    'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                  )}>
+                    {isToday ? 'Today' : `${daysAway}d`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {/* All Recurring Events */}
+      <div>
+        <button
+          onClick={() => setAllEventsOpen(v => !v)}
+          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 mb-3 transition-colors"
+        >
+          {allEventsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          All Recurring Events ({sorted.length})
+        </button>
+
+        {allEventsOpen && (
+          <>
+            {sorted.length === 0 && !loading ? (
+              <EmptyState icon={CalendarDays} title="No events yet" description="Your close calendar is empty." action={<Button onClick={openAdd}><Plus size={14} /> Add first event</Button>} />
+            ) : (
+              <div className="space-y-2">
+                {sorted.map(e => {
+                  const daysUntil = getDaysUntil(e);
+                  const dateStr = e.bd_day ? formatBDDate(e.bd_day) : e.specific_date || '';
+                  const isUrgent = daysUntil !== null && daysUntil >= 0 && daysUntil <= 2;
+                  const isPast = daysUntil !== null && daysUntil < 0;
+
+                  return (
+                    <Card key={e.id} hoverable onClick={() => openEdit(e)}>
+                      <CardBody className="py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={cn('w-2 h-2 rounded-full shrink-0', DOT_MAP[e.color] || DOT_MAP.zinc)} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="font-medium text-zinc-900 dark:text-zinc-100">{e.title}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className={cn('text-xs px-1.5 py-0.5 rounded border font-medium', COLOR_MAP[e.color] || COLOR_MAP.zinc)}>
+                                    {TYPE_LABELS[e.event_type]}
+                                  </span>
+                                  {e.bd_day && <span className="text-xs text-zinc-500">BD{e.bd_day}</span>}
+                                  <span className="text-xs text-zinc-500">{dateStr}</span>
+                                  {e.recurring !== 'once' && <span className="text-xs text-zinc-400 capitalize">{e.recurring}</span>}
+                                </div>
+                                {e.notes && <p className="text-xs text-zinc-400 mt-0.5">{e.notes}</p>}
+                              </div>
+                              {daysUntil !== null && (
+                                <span className={cn(
+                                  'shrink-0 text-xs font-semibold px-2 py-1 rounded-lg',
+                                  isPast ? 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800' :
+                                  isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                  daysUntil <= 7 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                  'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                )}>
+                                  {isPast ? 'Passed' : daysUntil === 0 ? 'Today' : `${daysUntil}d`}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {!allEventsOpen && sorted.length === 0 && (
+          <EmptyState icon={CalendarDays} title="No recurring events yet" description="Add your close calendar milestones." action={<Button onClick={openAdd}><Plus size={14} /> Add first event</Button>} />
+        )}
+      </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editEvent ? 'Edit Event' : 'Add Calendar Event'}>
         <div className="space-y-4">
